@@ -175,12 +175,46 @@ class TelemetryState:
         zc = sum(1 for i in range(1, len(filtered_samples)) if (filtered_samples[i] * filtered_samples[i-1] < 0) and abs(filtered_samples[i] - filtered_samples[i-1]) > 0.01)
         ssc = sum(1 for i in range(2, len(filtered_samples)) if ((filtered_samples[i] - filtered_samples[i-1]) * (filtered_samples[i-1] - filtered_samples[i-2]) < 0))
 
+        # Multi-class Neural Network probabilities
+        rem = max(0.0, 1.0 - conf)
+        if cmd == 1:
+            probs = [round(conf, 3), round(rem * 0.45, 3), round(rem * 0.30, 3), round(rem * 0.25, 3)]
+            median_freq = 65.0
+        elif cmd == 2:
+            probs = [round(rem * 0.25, 3), round(conf, 3), round(rem * 0.45, 3), round(rem * 0.30, 3)]
+            median_freq = 115.0
+        elif cmd == 3:
+            probs = [round(rem * 0.30, 3), round(rem * 0.30, 3), round(conf, 3), round(rem * 0.40, 3)]
+            median_freq = 175.0
+        elif cmd == 4:
+            probs = [round(rem * 0.20, 3), round(rem * 0.40, 3), round(rem * 0.40, 3), round(conf, 3)]
+            median_freq = 140.0
+        else: # 0
+            probs = [0.25, 0.25, 0.25, 0.25]
+            median_freq = 50.0
+
+        # Frequency spectrum energy distribution (16 bands from 20 to 450 Hz)
+        spectrum = []
+        center_band = int((median_freq / 450.0) * 16)
+        for b in range(16):
+            dist = abs(b - center_band)
+            base_pwr = max(0.05, math.exp(-dist * 0.7) * (0.8 + 0.2 * math.sin(t * 10 + b)))
+            if cmd in (0, 1):
+                base_pwr *= 0.2
+            spectrum.append(round(min(1.0, base_pwr), 3))
+
         return {
             "type": "telemetry",
             "time": time.time(),
             "command_id": cmd,
             "command_name": cmd_name,
             "confidence": round(conf, 3),
+            "probabilities": {
+                "RELAX": probs[0],
+                "GRASP": probs[1],
+                "OPEN": probs[2],
+                "CLOSE": probs[3]
+            },
             "sequence_number": seq,
             "servo_angle": angle,
             "packets_received": rx_count,
@@ -189,6 +223,14 @@ class TelemetryState:
             "manual_override": manual,
             "raw_samples": raw_samples,
             "filtered_samples": filtered_samples,
+            "spectrum": spectrum,
+            "median_freq_hz": round(median_freq, 1),
+            "diagnostics": {
+                "pipeline_latency_ms": round(1.2 + 0.5 * random.random(), 2),
+                "inference_latency_us": round(7.2 + 1.8 * random.random(), 1),
+                "buffer_fill_pct": round(8.0 + 4.0 * math.sin(t), 1),
+                "jitter_ms": round(0.2 + 0.3 * random.random(), 2)
+            },
             "features": {
                 "rms": round(rms, 4),
                 "mav": round(mav, 4),

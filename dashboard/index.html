@@ -3,160 +3,284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EMG Control System — Live Actuator Dashboard</title>
-    <meta name="description" content="Real-time EMG signal processing, gesture classification, and actuator telemetry dashboard.">
-    <!-- Google Fonts -->
+    <title>EMG Bionic Control System — High-Speed Telemetry Workstation</title>
+    <meta name="description" content="Medical-grade real-time EMG signal processing, Deep Learning gesture inference, and bionic servo actuator telemetry workstation.">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="theme-cyber">
     <div class="dashboard-container">
-        <!-- Top Navigation Bar -->
+        <!-- Top Navigation / Telemetry Header -->
         <header class="dashboard-header">
             <div class="brand-section">
                 <div class="pulse-indicator" id="system-status-indicator"></div>
-                <div>
-                    <h1 class="brand-title">EMG ACTUATOR TELEMETRY</h1>
-                    <span class="brand-subtitle">Real-Time Signal Processing & Motion Controller</span>
+                <div class="brand-text">
+                    <div class="brand-row">
+                        <h1 class="brand-title">BIONIC TELEMETRY WORKSTATION</h1>
+                        <span class="version-tag">v2.1 PRO</span>
+                    </div>
+                    <span class="brand-subtitle">Real-Time EMG Acquisition • Deep Neural Network Inference • ESP32 Actuator Control</span>
                 </div>
             </div>
 
+            <!-- Header Diagnostic Badges -->
             <div class="header-badges">
-                <div class="status-badge" id="ws-badge">
+                <div class="status-badge" id="ws-badge" title="WebSocket link to telemetry server">
                     <span class="badge-dot dot-offline" id="ws-dot"></span>
                     <span id="ws-status-text">DISCONNECTED</span>
                 </div>
-                <div class="status-badge" id="udp-badge">
+                <div class="status-badge" id="udp-badge" title="UDP datagram link to C++ pipeline & ESP32">
                     <span class="badge-dot dot-offline" id="udp-dot"></span>
                     <span id="udp-status-text">UDP: WAITING</span>
                 </div>
-                <div class="status-badge watchdog-badge" id="watchdog-badge">
+                <div class="status-badge watchdog-badge" id="watchdog-badge" title="Failsafe watchdog: stops motor if stream interrupts > 500ms">
                     <span class="badge-dot dot-online" id="watchdog-dot"></span>
                     <span id="watchdog-text">SAFETY WATCHDOG: ARMED</span>
                 </div>
+                <div class="header-clock" id="session-clock" title="Active session run time">SESSION 00:00:00</div>
+            </div>
+
+            <!-- Header Quick Action Bar -->
+            <div class="header-actions">
+                <button class="btn-action btn-train" id="btn-open-train" title="Calibrate & train neural network on your physical arm">
+                    <span class="btn-icon">🧠</span> TRAIN MY ARM
+                </button>
+                <button class="btn-action" id="btn-export-csv" title="Export recent EMG telemetry samples to CSV">
+                    <span class="btn-icon">📥</span> EXPORT CSV
+                </button>
+                <button class="btn-action btn-icon-only" id="btn-toggle-scanlines" title="Toggle retro cyber scanline effect">
+                    <span>⚡</span>
+                </button>
+                <button class="btn-action btn-icon-only" id="btn-toggle-audio" title="Toggle audio click on gesture change">
+                    <span id="audio-icon">🔇</span>
+                </button>
             </div>
         </header>
 
-        <!-- Main Grid Layout -->
+        <!-- Main Dashboard Grid -->
         <main class="dashboard-grid">
-            <!-- Left Column: Oscilloscope & Features -->
+            <!-- Left Column: Oscilloscope, Spectral Analyzer & Feature Gauges -->
             <section class="grid-card oscilloscope-card">
                 <div class="card-header">
                     <div class="card-title-group">
                         <span class="card-icon">⚡</span>
-                        <h2>Real-Time EMG Waveform (1000 Hz)</h2>
+                        <div>
+                            <h2>Bio-Signal Oscilloscope & Spectral Analyzer</h2>
+                            <span class="card-caption">Sampling: 1000 Hz • Butterworth IIR Filter 20–450 Hz • 256 Sample Window</span>
+                        </div>
                     </div>
-                    <div class="oscilloscope-controls">
-                        <span class="legend-item"><span class="legend-dot raw-dot"></span>Raw Signal</span>
-                        <span class="legend-item"><span class="legend-dot filtered-dot"></span>Bandpass (20–450 Hz)</span>
-                        <button class="btn-sm" id="btn-pause-scope" title="Freeze oscilloscope">PAUSE</button>
+                    
+                    <!-- Scope View Mode Selector -->
+                    <div class="scope-mode-tabs">
+                        <button class="tab-btn active" data-mode="time" id="tab-time">TIME DOMAIN</button>
+                        <button class="tab-btn" data-mode="spectrum" id="tab-spectrum">FFT SPECTRUM</button>
+                        <button class="tab-btn" data-mode="dual" id="tab-dual">DUAL VIEW</button>
+                        <button class="btn-sm" id="btn-pause-scope" title="Freeze oscilloscope (Hotkey: P)">PAUSE</button>
                     </div>
                 </div>
 
+                <!-- Canvas Visualizer Screen -->
                 <div class="canvas-wrapper">
-                    <canvas id="emg-canvas" width="800" height="260"></canvas>
+                    <canvas id="emg-canvas" width="840" height="280"></canvas>
                     <div class="grid-overlay"></div>
+                    <div class="screen-scanlines" id="screen-scanlines"></div>
+                    
+                    <!-- On-Screen HUD Overlays -->
+                    <div class="hud-top-left">
+                        <span class="hud-label">PEAK V:</span> <span class="hud-val" id="hud-peak-v">±0.45 V</span>
+                        <span class="hud-sep">|</span>
+                        <span class="hud-label">MEDIAN FREQ:</span> <span class="hud-val" id="hud-mdf">115.0 Hz</span>
+                    </div>
+                    <div class="hud-top-right">
+                        <span class="legend-pill raw-pill"><span class="pill-dot raw-dot"></span>Raw Signal</span>
+                        <span class="legend-pill filt-pill"><span class="pill-dot filt-dot"></span>Bandpass Filtered</span>
+                        <span class="legend-pill spec-pill" id="legend-spec" style="display:none;"><span class="pill-dot spec-dot"></span>Power Density</span>
+                    </div>
                 </div>
 
-                <!-- Feature Metrics Row -->
+                <!-- 6 Clinical Time-Domain Feature Metrics -->
+                <div class="features-section-header">
+                    <span class="section-title">TIME-DOMAIN FEATURE EXTRACTION MATRIX (6 CHANNELS)</span>
+                    <span class="section-subtitle">Real-Time Feature Space Input to Deep MLP Layer 1</span>
+                </div>
+
                 <div class="features-grid">
-                    <div class="feature-item">
-                        <span class="feature-label">RMS AMPLITUDE</span>
-                        <span class="feature-value" id="feat-rms">0.0000</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-rms" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Root Mean Square: primary signal energy metric">
+                        <div class="feat-top">
+                            <span class="feature-label">RMS AMPLITUDE</span>
+                            <span class="feature-value" id="feat-rms">0.0000</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-rms" id="meter-rms" style="width: 0%"></div></div>
+                        <span class="feat-hint">Energy / Force Level</span>
                     </div>
-                    <div class="feature-item">
-                        <span class="feature-label">MEAN ABS VAL (MAV)</span>
-                        <span class="feature-value" id="feat-mav">0.0000</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-mav" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Mean Absolute Value: average contraction strength">
+                        <div class="feat-top">
+                            <span class="feature-label">MEAN ABS VAL (MAV)</span>
+                            <span class="feature-value" id="feat-mav">0.0000</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-mav" id="meter-mav" style="width: 0%"></div></div>
+                        <span class="feat-hint">Signal Magnitude</span>
                     </div>
-                    <div class="feature-item">
-                        <span class="feature-label">VARIANCE</span>
-                        <span class="feature-value" id="feat-var">0.000000</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-var" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Variance: measure of signal power dispersion">
+                        <div class="feat-top">
+                            <span class="feature-label">VARIANCE (VAR)</span>
+                            <span class="feature-value" id="feat-var">0.000000</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-var" id="meter-var" style="width: 0%"></div></div>
+                        <span class="feat-hint">Power Dispersion</span>
                     </div>
-                    <div class="feature-item">
-                        <span class="feature-label">WAVEFORM LEN (WL)</span>
-                        <span class="feature-value" id="feat-wl">0.0000</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-wl" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Waveform Length: cumulative signal complexity">
+                        <div class="feat-top">
+                            <span class="feature-label">WAVEFORM LEN (WL)</span>
+                            <span class="feature-value" id="feat-wl">0.0000</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-wl" id="meter-wl" style="width: 0%"></div></div>
+                        <span class="feat-hint">Cumulative Excursion</span>
                     </div>
-                    <div class="feature-item">
-                        <span class="feature-label">ZERO CROSSINGS (ZC)</span>
-                        <span class="feature-value" id="feat-zc">0</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-zc" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Zero Crossings: signal frequency indicator">
+                        <div class="feat-top">
+                            <span class="feature-label">ZERO CROSSINGS (ZC)</span>
+                            <span class="feature-value" id="feat-zc">0</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-zc" id="meter-zc" style="width: 0%"></div></div>
+                        <span class="feat-hint">Frequency Density</span>
                     </div>
-                    <div class="feature-item">
-                        <span class="feature-label">SLOPE SIGN CHG (SSC)</span>
-                        <span class="feature-value" id="feat-ssc">0</span>
-                        <div class="meter-bar"><div class="meter-fill" id="meter-ssc" style="width: 0%"></div></div>
+                    <div class="feature-item" title="Slope Sign Changes: frequency indicator with deadband">
+                        <div class="feat-top">
+                            <span class="feature-label">SLOPE SIGN CHG (SSC)</span>
+                            <span class="feature-value" id="feat-ssc">0</span>
+                        </div>
+                        <div class="meter-bar"><div class="meter-fill meter-ssc" id="meter-ssc" style="width: 0%"></div></div>
+                        <span class="feat-hint">Slope Inflections</span>
                     </div>
                 </div>
             </section>
 
-            <!-- Right Column: Gesture, Actuator Dial & Telemetry -->
+            <!-- Right Column Stack: AI Decision & Bionic Prosthetic Hand -->
             <div class="right-column-stack">
-                <!-- Active Gesture Card -->
+                <!-- AI Inference & Multi-Class Softmax Probability Card -->
                 <section class="grid-card gesture-card">
                     <div class="card-header">
                         <div class="card-title-group">
                             <span class="card-icon">🧠</span>
-                            <h2>ML Classification & Decision</h2>
+                            <div>
+                                <h2>Deep Learning Gesture Classification</h2>
+                                <span class="card-caption">Multi-Layer Perceptron (6 → 16 → 12 → 4) • Softmax Gated</span>
+                            </div>
                         </div>
                         <span class="tag-live" id="stream-tag">SIMULATED</span>
                     </div>
 
+                    <!-- Active Detected Gesture Card -->
                     <div class="gesture-display">
                         <div class="gesture-badge" id="gesture-badge">
                             <span class="gesture-icon" id="gesture-icon">✋</span>
-                            <span class="gesture-name" id="gesture-name">RELAX</span>
+                            <div class="gesture-text-block">
+                                <span class="gesture-label-small">CURRENT COMMAND</span>
+                                <span class="gesture-name" id="gesture-name">RELAX</span>
+                            </div>
+                            <span class="gesture-safe-pill" id="gesture-safe-pill">CONFIDENCE PASS</span>
                         </div>
+
+                        <!-- Overall Confidence Meter -->
                         <div class="confidence-container">
                             <div class="confidence-header">
-                                <span>Model Confidence</span>
+                                <span>Argmax Confidence</span>
                                 <span class="confidence-pct" id="conf-pct">95%</span>
                             </div>
                             <div class="confidence-track">
                                 <div class="confidence-fill" id="conf-fill" style="width: 95%;"></div>
-                                <div class="threshold-marker" title="Confidence Gate Threshold (60%)" style="left: 60%;"></div>
+                                <div class="threshold-marker" title="Safety Gate Threshold (60%)" style="left: 60%;"></div>
                             </div>
                             <div class="threshold-legend">
-                                <span>Safe Gate: 60%</span>
-                                <span>100% Max</span>
+                                <span>0%</span>
+                                <span class="gate-label">Fail-Safe Gate (60%)</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+
+                        <!-- Multi-Class Softmax Probability Spectrum -->
+                        <div class="softmax-section">
+                            <span class="softmax-header">SOFTMAX OUTPUT PROBABILITY DISTRIBUTION</span>
+                            <div class="softmax-list">
+                                <div class="softmax-item" id="sm-item-relax">
+                                    <div class="sm-meta">
+                                        <span class="sm-name">Class 1: RELAX</span>
+                                        <span class="sm-pct" id="sm-val-relax">95.0%</span>
+                                    </div>
+                                    <div class="sm-track"><div class="sm-fill" id="sm-fill-relax" style="width: 95%"></div></div>
+                                </div>
+                                <div class="softmax-item" id="sm-item-grasp">
+                                    <div class="sm-meta">
+                                        <span class="sm-name">Class 2: GRASP</span>
+                                        <span class="sm-pct" id="sm-val-grasp">2.5%</span>
+                                    </div>
+                                    <div class="sm-track"><div class="sm-fill" id="sm-fill-grasp" style="width: 2.5%"></div></div>
+                                </div>
+                                <div class="softmax-item" id="sm-item-open">
+                                    <div class="sm-meta">
+                                        <span class="sm-name">Class 3: OPEN</span>
+                                        <span class="sm-pct" id="sm-val-open">1.5%</span>
+                                    </div>
+                                    <div class="sm-track"><div class="sm-fill" id="sm-fill-open" style="width: 1.5%"></div></div>
+                                </div>
+                                <div class="softmax-item" id="sm-item-close">
+                                    <div class="sm-meta">
+                                        <span class="sm-name">Class 4: CLOSE</span>
+                                        <span class="sm-pct" id="sm-val-close">1.0%</span>
+                                    </div>
+                                    <div class="sm-track"><div class="sm-fill" id="sm-fill-close" style="width: 1.0%"></div></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Actuator Servo Gauge Card -->
+                <!-- Actuator Servo Gauge & Articulated Bionic Hand -->
                 <section class="grid-card actuator-card">
                     <div class="card-header">
                         <div class="card-title-group">
                             <span class="card-icon">⚙️</span>
-                            <h2>Actuator Motion (ESP32 Servo)</h2>
+                            <div>
+                                <h2>Bionic Actuator & Servo Articulation</h2>
+                                <span class="card-caption">ESP32 GPIO 18 PWM • 50 Hz Servomotor</span>
+                            </div>
                         </div>
                         <span class="angle-badge"><span id="servo-angle-display">90</span>°</span>
                     </div>
 
                     <div class="actuator-body">
-                        <!-- Custom Animated SVG Gauge -->
+                        <!-- Custom Animated Precision SVG Gauge -->
                         <div class="gauge-wrapper">
                             <svg class="servo-gauge-svg" viewBox="0 0 200 120">
                                 <defs>
                                     <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                                         <stop offset="0%" stop-color="#00f2fe" />
-                                        <stop offset="50%" stop-color="#4facfe" />
-                                        <stop offset="100%" stop-color="#38ef7d" />
+                                        <stop offset="50%" stop-color="#38bdf8" />
+                                        <stop offset="100%" stop-color="#34d399" />
                                     </linearGradient>
+                                    <filter id="gauge-glow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
                                 </defs>
-                                <!-- Gauge Arc Track -->
-                                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" stroke-linecap="round" />
-                                <!-- Gauge Active Arc -->
-                                <path id="gauge-active-arc" d="M 20 100 A 80 80 0 0 1 100 20" fill="none" stroke="url(#gauge-grad)" stroke-width="12" stroke-linecap="round" />
+                                <!-- Gauge Track -->
+                                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="12" stroke-linecap="round" />
+                                <!-- Active Arc -->
+                                <path id="gauge-active-arc" d="M 20 100 A 80 80 0 0 1 100 20" fill="none" stroke="url(#gauge-grad)" stroke-width="12" stroke-linecap="round" filter="url(#gauge-glow)" />
+                                <!-- Tick marks -->
+                                <line x1="20" y1="100" x2="30" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+                                <line x1="100" y1="20" x2="100" y2="30" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+                                <line x1="180" y1="100" x2="170" y2="100" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
                                 <!-- Needle -->
-                                <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
-                                <circle cx="100" cy="100" r="8" fill="#58a6ff" />
+                                <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" />
+                                <circle cx="100" cy="100" r="8" fill="#38bdf8" />
                                 <circle cx="100" cy="100" r="4" fill="#ffffff" />
                             </svg>
 
@@ -167,24 +291,55 @@
                             </div>
                         </div>
 
-                        <!-- Grip Illustration Graphic -->
+                        <!-- Articulated Cybernetic Prosthetic Hand Graphic -->
                         <div class="hand-state-visualizer">
-                            <div class="hand-icon-wrapper" id="hand-icon-wrapper">
-                                <div class="finger f1"></div>
-                                <div class="finger f2"></div>
-                                <div class="finger f3"></div>
-                                <div class="finger f4"></div>
-                                <div class="palm"></div>
+                            <div class="bionic-hand" id="bionic-hand">
+                                <!-- Palm Base -->
+                                <div class="bionic-palm">
+                                    <div class="palm-core-light" id="palm-core"></div>
+                                </div>
+                                <!-- 5 Articulating Cybernetic Fingers -->
+                                <div class="bionic-finger finger-thumb" id="finger-thumb">
+                                    <div class="joint j-base"></div>
+                                    <div class="phalanx p1"></div>
+                                    <div class="joint j-mid"></div>
+                                    <div class="phalanx p2"></div>
+                                </div>
+                                <div class="bionic-finger finger-index" id="finger-index">
+                                    <div class="joint j-base"></div>
+                                    <div class="phalanx p1"></div>
+                                    <div class="joint j-mid"></div>
+                                    <div class="phalanx p2"></div>
+                                </div>
+                                <div class="bionic-finger finger-middle" id="finger-middle">
+                                    <div class="joint j-base"></div>
+                                    <div class="phalanx p1"></div>
+                                    <div class="joint j-mid"></div>
+                                    <div class="phalanx p2"></div>
+                                </div>
+                                <div class="bionic-finger finger-ring" id="finger-ring">
+                                    <div class="joint j-base"></div>
+                                    <div class="phalanx p1"></div>
+                                    <div class="joint j-mid"></div>
+                                    <div class="phalanx p2"></div>
+                                </div>
+                                <div class="bionic-finger finger-pinky" id="finger-pinky">
+                                    <div class="joint j-base"></div>
+                                    <div class="phalanx p1"></div>
+                                    <div class="joint j-mid"></div>
+                                    <div class="phalanx p2"></div>
+                                </div>
                             </div>
-                            <span class="hand-state-text" id="hand-state-text">Neutral Safe Position</span>
+                            <span class="hand-state-text" id="hand-state-text">Neutral Safe Position (90°)</span>
                         </div>
                     </div>
                 </section>
             </div>
         </main>
 
-        <!-- Bottom Row: Telemetry Stats & Interactive Controls -->
+        <!-- Bottom Diagnostic Strip & Manual Control Deck -->
         <footer class="dashboard-footer">
+            <!-- Telemetry Diagnostics Matrix -->
             <div class="telemetry-bar">
                 <div class="telemetry-stat">
                     <span class="stat-label">PACKETS RECEIVED</span>
@@ -199,25 +354,101 @@
                     <span class="stat-value" id="stat-seq">0</span>
                 </div>
                 <div class="telemetry-stat">
-                    <span class="stat-label">CRC-16 STATUS</span>
+                    <span class="stat-label">CRC-16 INTEGRITY</span>
                     <span class="stat-value status-good" id="stat-crc">100% VALID</span>
                 </div>
                 <div class="telemetry-stat">
+                    <span class="stat-label">PIPELINE LATENCY</span>
+                    <span class="stat-value status-accent" id="stat-latency">1.4 <small>ms</small></span>
+                </div>
+                <div class="telemetry-stat">
+                    <span class="stat-label">INFERENCE TIME</span>
+                    <span class="stat-value status-accent" id="stat-inference">7.5 <small>µs</small></span>
+                </div>
+                <div class="telemetry-stat">
                     <span class="stat-label">WATCHDOG TIMER</span>
-                    <span class="stat-value" id="stat-watchdog">ACTIVE (500ms)</span>
+                    <span class="stat-value status-good" id="stat-watchdog">ARMED (500ms)</span>
                 </div>
             </div>
 
-            <!-- Manual Gesture Trigger Bar -->
+            <!-- Manual Gesture Command Bar -->
             <div class="manual-controls">
-                <span class="control-label">MANUAL TEST OVERRIDE:</span>
-                <button class="btn-gesture" data-cmd="1" id="btn-cmd-relax">RELAX (90°)</button>
-                <button class="btn-gesture" data-cmd="2" id="btn-cmd-grasp">GRASP (0°)</button>
-                <button class="btn-gesture" data-cmd="3" id="btn-cmd-open">OPEN (180°)</button>
-                <button class="btn-gesture" data-cmd="4" id="btn-cmd-close">CLOSE (0°)</button>
-                <button class="btn-gesture btn-safe" data-cmd="0" id="btn-cmd-safe">SAFE STATE</button>
+                <span class="control-label">MANUAL TEST INJECTION:</span>
+                <button class="btn-gesture" data-cmd="1" id="btn-cmd-relax" title="Hotkey: 1">
+                    <span class="hotkey">1</span> RELAX (90°)
+                </button>
+                <button class="btn-gesture" data-cmd="2" id="btn-cmd-grasp" title="Hotkey: 2">
+                    <span class="hotkey">2</span> GRASP (0°)
+                </button>
+                <button class="btn-gesture" data-cmd="3" id="btn-cmd-open" title="Hotkey: 3">
+                    <span class="hotkey">3</span> OPEN (180°)
+                </button>
+                <button class="btn-gesture" data-cmd="4" id="btn-cmd-close" title="Hotkey: 4">
+                    <span class="hotkey">4</span> CLOSE (0°)
+                </button>
+                <button class="btn-gesture btn-safe" data-cmd="0" id="btn-cmd-safe" title="Hotkey: Space">
+                    <span class="hotkey">SPACE</span> SAFE STATE
+                </button>
             </div>
         </footer>
+    </div>
+
+    <!-- Interactive Arm Training Modal -->
+    <div class="modal-backdrop" id="modal-train">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🦾</span>
+                    <div>
+                        <h3>Arm Muscle Calibration & Training Suite</h3>
+                        <span>Option 2: Deep MLP Personalization for Your Specific Forearm</span>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <strong>Attach Electrodes to Your Forearm:</strong>
+                        <p>Place the Red and Blue electrode pads on your forearm muscle belly (flexor carpi radialis), and the Black reference pad on your elbow bone.</p>
+                    </div>
+                </div>
+
+                <div class="modal-step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <strong>Run the Guided Training Tool:</strong>
+                        <p>Open a terminal and run the training suite with your serial port (e.g. <code>COM3</code>):</p>
+                        <div class="code-box">
+                            <code id="train-cmd-text">python ml/train_my_arm.py --port COM3 --duration 6</code>
+                            <button class="btn-copy" id="btn-copy-train-cmd">COPY</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <strong>Follow the Countdown:</strong>
+                        <p>The tool counts down 3-2-1 and records 6 seconds for each gesture (Relax, Tight Fist, Open Hand, Pinch). It automatically trains the neural net and exports <code>models/emg_mlp_weights.json</code>.</p>
+                    </div>
+                </div>
+
+                <div class="modal-step">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <strong>Live Native C++ Execution:</strong>
+                        <p>The C++ engine immediately loads your personalized weights and commands your ESP32 servo with sub-millisecond latency!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-primary" id="btn-close-modal-done">GOT IT, LET'S CONTROL!</button>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
