@@ -1,0 +1,56 @@
+{
+    "emg": {
+        "sample_rate_hz": 1000,
+        "channels": 1,
+        "source": "fake",
+        "serial_port": "COM3",
+        "serial_baud_rate": 115200
+    },
+    "processing": {
+        "window_size": 256,
+        "window_overlap": 128,
+        "filter_low_hz": 20.0,
+        "filter_high_hz": 450.0,
+        "normalize": true
+    },
+    "features": {
+        "rms": true,
+        "mav": true,
+        "variance": true,
+        "waveform_length": true,
+        "zero_crossings": true,
+        "slope_sign_changes": true
+    },
+    "ml": {
+        "model_type": "mock",
+        "model_path": "",
+        "confidence_threshold": 0.6
+    },
+    "decisions": {
+        "mapping": {
+            "1": "RELAX",
+            "2": "GRASP",
+            "3": "OPEN",
+            "4": "CLOSE"
+        }
+    },
+    "udp": {
+        "esp32_ip": "127.0.0.1",
+        "esp32_port": 8888,
+        "send_rate_hz": 20
+    },
+    "queues": {
+        "ring_buffer_capacity": 4096,
+        "feature_queue_capacity": 64,
+        "decision_queue_capacity": 32
+    },
+    "safety": {
+        "watchdog_timeout_ms": 500,
+        "max_stale_command_ms": 1000
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "emg_control.log",
+        "console": true
+    }
+}

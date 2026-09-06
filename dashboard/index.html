@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMG Control System — Live Actuator Dashboard</title>
+    <meta name="description" content="Real-time EMG signal processing, gesture classification, and actuator telemetry dashboard.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Top Navigation Bar -->
+        <header class="dashboard-header">
+            <div class="brand-section">
+                <div class="pulse-indicator" id="system-status-indicator"></div>
+                <div>
+                    <h1 class="brand-title">EMG ACTUATOR TELEMETRY</h1>
+                    <span class="brand-subtitle">Real-Time Signal Processing & Motion Controller</span>
+                </div>
+            </div>
+
+            <div class="header-badges">
+                <div class="status-badge" id="ws-badge">
+                    <span class="badge-dot dot-offline" id="ws-dot"></span>
+                    <span id="ws-status-text">DISCONNECTED</span>
+                </div>
+                <div class="status-badge" id="udp-badge">
+                    <span class="badge-dot dot-offline" id="udp-dot"></span>
+                    <span id="udp-status-text">UDP: WAITING</span>
+                </div>
+                <div class="status-badge watchdog-badge" id="watchdog-badge">
+                    <span class="badge-dot dot-online" id="watchdog-dot"></span>
+                    <span id="watchdog-text">SAFETY WATCHDOG: ARMED</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <main class="dashboard-grid">
+            <!-- Left Column: Oscilloscope & Features -->
+            <section class="grid-card oscilloscope-card">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <span class="card-icon">⚡</span>
+                        <h2>Real-Time EMG Waveform (1000 Hz)</h2>
+                    </div>
+                    <div class="oscilloscope-controls">
+                        <span class="legend-item"><span class="legend-dot raw-dot"></span>Raw Signal</span>
+                        <span class="legend-item"><span class="legend-dot filtered-dot"></span>Bandpass (20–450 Hz)</span>
+                        <button class="btn-sm" id="btn-pause-scope" title="Freeze oscilloscope">PAUSE</button>
+                    </div>
+                </div>
+
+                <div class="canvas-wrapper">
+                    <canvas id="emg-canvas" width="800" height="260"></canvas>
+                    <div class="grid-overlay"></div>
+                </div>
+
+                <!-- Feature Metrics Row -->
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <span class="feature-label">RMS AMPLITUDE</span>
+                        <span class="feature-value" id="feat-rms">0.0000</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-rms" style="width: 0%"></div></div>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">MEAN ABS VAL (MAV)</span>
+                        <span class="feature-value" id="feat-mav">0.0000</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-mav" style="width: 0%"></div></div>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">VARIANCE</span>
+                        <span class="feature-value" id="feat-var">0.000000</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-var" style="width: 0%"></div></div>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">WAVEFORM LEN (WL)</span>
+                        <span class="feature-value" id="feat-wl">0.0000</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-wl" style="width: 0%"></div></div>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">ZERO CROSSINGS (ZC)</span>
+                        <span class="feature-value" id="feat-zc">0</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-zc" style="width: 0%"></div></div>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-label">SLOPE SIGN CHG (SSC)</span>
+                        <span class="feature-value" id="feat-ssc">0</span>
+                        <div class="meter-bar"><div class="meter-fill" id="meter-ssc" style="width: 0%"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Gesture, Actuator Dial & Telemetry -->
+            <div class="right-column-stack">
+                <!-- Active Gesture Card -->
+                <section class="grid-card gesture-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-icon">🧠</span>
+                            <h2>ML Classification & Decision</h2>
+                        </div>
+                        <span class="tag-live" id="stream-tag">SIMULATED</span>
+                    </div>
+
+                    <div class="gesture-display">
+                        <div class="gesture-badge" id="gesture-badge">
+                            <span class="gesture-icon" id="gesture-icon">✋</span>
+                            <span class="gesture-name" id="gesture-name">RELAX</span>
+                        </div>
+                        <div class="confidence-container">
+                            <div class="confidence-header">
+                                <span>Model Confidence</span>
+                                <span class="confidence-pct" id="conf-pct">95%</span>
+                            </div>
+                            <div class="confidence-track">
+                                <div class="confidence-fill" id="conf-fill" style="width: 95%;"></div>
+                                <div class="threshold-marker" title="Confidence Gate Threshold (60%)" style="left: 60%;"></div>
+                            </div>
+                            <div class="threshold-legend">
+                                <span>Safe Gate: 60%</span>
+                                <span>100% Max</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Actuator Servo Gauge Card -->
+                <section class="grid-card actuator-card">
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <span class="card-icon">⚙️</span>
+                            <h2>Actuator Motion (ESP32 Servo)</h2>
+                        </div>
+                        <span class="angle-badge"><span id="servo-angle-display">90</span>°</span>
+                    </div>
+
+                    <div class="actuator-body">
+                        <!-- Custom Animated SVG Gauge -->
+                        <div class="gauge-wrapper">
+                            <svg class="servo-gauge-svg" viewBox="0 0 200 120">
+                                <defs>
+                                    <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#00f2fe" />
+                                        <stop offset="50%" stop-color="#4facfe" />
+                                        <stop offset="100%" stop-color="#38ef7d" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- Gauge Arc Track -->
+                                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" stroke-linecap="round" />
+                                <!-- Gauge Active Arc -->
+                                <path id="gauge-active-arc" d="M 20 100 A 80 80 0 0 1 100 20" fill="none" stroke="url(#gauge-grad)" stroke-width="12" stroke-linecap="round" />
+                                <!-- Needle -->
+                                <line id="gauge-needle" x1="100" y1="100" x2="100" y2="28" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+                                <circle cx="100" cy="100" r="8" fill="#58a6ff" />
+                                <circle cx="100" cy="100" r="4" fill="#ffffff" />
+                            </svg>
+
+                            <div class="gauge-labels">
+                                <span>0° GRASP</span>
+                                <span>90° NEUTRAL</span>
+                                <span>180° OPEN</span>
+                            </div>
+                        </div>
+
+                        <!-- Grip Illustration Graphic -->
+                        <div class="hand-state-visualizer">
+                            <div class="hand-icon-wrapper" id="hand-icon-wrapper">
+                                <div class="finger f1"></div>
+                                <div class="finger f2"></div>
+                                <div class="finger f3"></div>
+                                <div class="finger f4"></div>
+                                <div class="palm"></div>
+                            </div>
+                            <span class="hand-state-text" id="hand-state-text">Neutral Safe Position</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Bottom Row: Telemetry Stats & Interactive Controls -->
+        <footer class="dashboard-footer">
+            <div class="telemetry-bar">
+                <div class="telemetry-stat">
+                    <span class="stat-label">PACKETS RECEIVED</span>
+                    <span class="stat-value" id="stat-packets">0</span>
+                </div>
+                <div class="telemetry-stat">
+                    <span class="stat-label">PACKET RATE</span>
+                    <span class="stat-value" id="stat-rate">0.0 <small>Hz</small></span>
+                </div>
+                <div class="telemetry-stat">
+                    <span class="stat-label">LAST SEQ #</span>
+                    <span class="stat-value" id="stat-seq">0</span>
+                </div>
+                <div class="telemetry-stat">
+                    <span class="stat-label">CRC-16 STATUS</span>
+                    <span class="stat-value status-good" id="stat-crc">100% VALID</span>
+                </div>
+                <div class="telemetry-stat">
+                    <span class="stat-label">WATCHDOG TIMER</span>
+                    <span class="stat-value" id="stat-watchdog">ACTIVE (500ms)</span>
+                </div>
+            </div>
+
+            <!-- Manual Gesture Trigger Bar -->
+            <div class="manual-controls">
+                <span class="control-label">MANUAL TEST OVERRIDE:</span>
+                <button class="btn-gesture" data-cmd="1" id="btn-cmd-relax">RELAX (90°)</button>
+                <button class="btn-gesture" data-cmd="2" id="btn-cmd-grasp">GRASP (0°)</button>
+                <button class="btn-gesture" data-cmd="3" id="btn-cmd-open">OPEN (180°)</button>
+                <button class="btn-gesture" data-cmd="4" id="btn-cmd-close">CLOSE (0°)</button>
+                <button class="btn-gesture btn-safe" data-cmd="0" id="btn-cmd-safe">SAFE STATE</button>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

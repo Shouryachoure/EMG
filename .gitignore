@@ -1,0 +1,48 @@
+# Build directories
+pc/build/
+build/
+bin/
+obj/
+
+# PlatformIO
+esp32/.pio/
+.pio/
+
+# Compiled Binaries & Libraries
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+venv/
+
+# Logs
+*.log
+emg_control.log
+
+# IDE & Editor files
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+*~
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary configs
+*test_e2e_config.json
