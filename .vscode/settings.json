@@ -1,3 +1,8 @@
 {
-    "cmake.sourceDirectory": "D:/EMG/pc"
+    "cmake.sourceDirectory": "D:/EMG/pc",
+    "clangd.arguments": [
+        "--compile-commands-dir=pc/build",
+        "--query-driver=C:/msys64/ucrt64/bin/g++.exe,C:/msys64/ucrt64/bin/*",
+        "--header-insertion=never"
+    ]
 }

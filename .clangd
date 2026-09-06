@@ -1,0 +1,22 @@
+CompileFlags:
+  CompilationDatabase: "pc/build"
+  Add:
+    - "-isystem"
+    - "C:/msys64/ucrt64/include/c++/16.2.0"
+    - "-isystem"
+    - "C:/msys64/ucrt64/include/c++/16.2.0/x86_64-w64-mingw32"
+    - "-isystem"
+    - "C:/msys64/ucrt64/include/c++/16.2.0/backward"
+    - "-isystem"
+    - "C:/msys64/ucrt64/include"
+    - "--target=x86_64-w64-mingw32"
+---
+If:
+  PathMatch:
+    - esp32/.*
+    - sensor_arduino/.*
+    - pico_w_sensor/.*
+    - .*\.ino$
+Diagnostics:
+  Suppress: ["*"]
+

@@ -3,6 +3,7 @@ pc/build/
 build/
 bin/
 obj/
+compile_commands.json
 
 # PlatformIO
 esp32/.pio/
