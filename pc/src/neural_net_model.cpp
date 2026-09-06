@@ -270,34 +270,69 @@ Prediction NeuralNetModel::predict(const std::vector<double>& features) {
         return last_prediction_;
     }
 
-    // 1. Feature normalization (z-score scaling)
-    std::vector<double> x_norm(6, 0.0);
+    // 1. Stack buffers (zero heap allocations)
+    alignas(32) double x_norm[6];
     for (size_t i = 0; i < 6; ++i) {
-        double raw_val = (i < features.size()) ? features[i] : 0.0;
-        double mean = (i < feature_mean_.size()) ? feature_mean_[i] : 0.0;
-        double std_dev = (i < feature_std_.size() && feature_std_[i] > 1e-6) ? feature_std_[i] : 1.0;
+        const double raw_val = (i < features.size()) ? features[i] : 0.0;
+        const double mean = (i < feature_mean_.size()) ? feature_mean_[i] : 0.0;
+        const double std_dev = (i < feature_std_.size() && feature_std_[i] > 1e-6) ? feature_std_[i] : 1.0;
         x_norm[i] = (raw_val - mean) / std_dev;
     }
 
-    // 2. Forward pass: Layer 1 (Dense 6 -> 16 + ReLU)
-    auto h1 = forwardDense(x_norm, layer1_, true);
+    // 2. Layer 1: Dense 6 -> 16 + ReLU
+    alignas(32) double h1[16];
+    for (int j = 0; j < 16; ++j) {
+        double val = layer1_.biases[j];
+        for (int i = 0; i < 6; ++i) {
+            val += layer1_.weights[j][i] * x_norm[i];
+        }
+        h1[j] = std::max(0.0, val);
+    }
 
-    // 3. Forward pass: Layer 2 (Dense 16 -> 12 + ReLU)
-    auto h2 = forwardDense(h1, layer2_, true);
+    // 3. Layer 2: Dense 16 -> 12 + ReLU
+    alignas(32) double h2[12];
+    for (int j = 0; j < 12; ++j) {
+        double val = layer2_.biases[j];
+        for (int i = 0; i < 16; ++i) {
+            val += layer2_.weights[j][i] * h1[i];
+        }
+        h2[j] = std::max(0.0, val);
+    }
 
-    // 4. Forward pass: Layer 3 (Dense 12 -> 4 Linear)
-    auto z3 = forwardDense(h2, layer3_, false);
+    // 4. Layer 3: Dense 12 -> 4 Linear
+    alignas(32) double z3[4];
+    for (int j = 0; j < 4; ++j) {
+        double val = layer3_.biases[j];
+        for (int i = 0; i < 12; ++i) {
+            val += layer3_.weights[j][i] * h2[i];
+        }
+        z3[j] = val;
+    }
 
-    // 5. Activation: Softmax over 4 gesture classes
-    last_probabilities_ = softmax(z3);
+    // 5. Softmax over 4 classes
+    double max_z = z3[0];
+    for (int i = 1; i < 4; ++i) {
+        if (z3[i] > max_z) max_z = z3[i];
+    }
 
-    // 6. Classification: Argmax (1-indexed: 1=RELAX, 2=GRASP, 3=OPEN, 4=CLOSE)
+    double sum_exp = 0.0;
+    double exp_z[4];
+    for (int i = 0; i < 4; ++i) {
+        exp_z[i] = std::exp(z3[i] - max_z);
+        sum_exp += exp_z[i];
+    }
+
+    if (last_probabilities_.size() != 4) last_probabilities_.resize(4);
+    const double inv_sum = (sum_exp > 1e-12) ? (1.0 / sum_exp) : 0.25;
+
     int best_class = 1;
-    double max_prob = last_probabilities_[0];
-    for (size_t i = 1; i < last_probabilities_.size(); ++i) {
-        if (last_probabilities_[i] > max_prob) {
-            max_prob = last_probabilities_[i];
-            best_class = static_cast<int>(i) + 1;
+    double max_prob = -1.0;
+    for (int i = 0; i < 4; ++i) {
+        const double prob = exp_z[i] * inv_sum;
+        last_probabilities_[i] = prob;
+        if (prob > max_prob) {
+            max_prob = prob;
+            best_class = i + 1;
         }
     }
 

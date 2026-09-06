@@ -34,7 +34,15 @@ public:
     static std::vector<double> normalize(const std::vector<double>& samples);
 
 private:
+    void computeFilterCoefficients();
+
     ProcessingConfig config_;
+    bool   filter_valid_ = false;
+    double nb0_ = 0.0;
+    double nb1_ = 0.0;
+    double nb2_ = 0.0;
+    double na1_ = 0.0;
+    double na2_ = 0.0;
 };
 
 } // namespace emg

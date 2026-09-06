@@ -14,11 +14,11 @@ else()
     set(PLATFORM_LIBS pthread)
 endif()
 
-# Compiler warnings
+# Compiler options and performance optimization
 if(MSVC)
-    add_compile_options(/W4 /permissive-)
+    add_compile_options(/W4 /permissive- /O2 /Oi /Ot)
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic -O3 -funroll-loops)
 endif()
 
 # Include directories
