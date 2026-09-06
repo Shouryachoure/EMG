@@ -2,6 +2,7 @@
 #include "fake_emg_reader.h"
 #include "serial_emg_reader.h"
 #include "mock_ml_model.h"
+#include "neural_net_model.h"
 #include "logger.h"
 
 #include <chrono>
@@ -45,12 +46,13 @@ bool Pipeline::initialize() {
     LOG_INFO("Pipeline", "EMG reader initialized: " + emg_reader_->name());
 
     // Create ML model based on config
-    if (config_.ml_model_type == "mock") {
+    if (config_.ml_model_type == "neural_net" || config_.ml_model_type == "mlp") {
+        ml_model_ = std::make_unique<NeuralNetModel>();
+    } else if (config_.ml_model_type == "mock") {
         ml_model_ = std::make_unique<MockMLModel>();
     } else {
-        // Future: TFLite, ONNX
-        LOG_WARN("Pipeline", "Unknown ML model type '" + config_.ml_model_type + "', using mock");
-        ml_model_ = std::make_unique<MockMLModel>();
+        LOG_WARN("Pipeline", "Unknown ML model type '" + config_.ml_model_type + "', defaulting to NeuralNetModel");
+        ml_model_ = std::make_unique<NeuralNetModel>();
     }
 
     if (!ml_model_->loadModel(config_.ml_model_path)) {

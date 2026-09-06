@@ -31,6 +31,7 @@ set(LIB_SOURCES
     src/signal_processor.cpp
     src/feature_extractor.cpp
     src/mock_ml_model.cpp
+    src/neural_net_model.cpp
     src/decision_engine.cpp
     src/command_packet.cpp
     src/udp_sender.cpp
@@ -60,6 +61,7 @@ if(BUILD_TESTING)
         tests/test_signal_processor.cpp
         tests/test_feature_extractor.cpp
         tests/test_mock_ml.cpp
+        tests/test_neural_net.cpp
         tests/test_decision_engine.cpp
         tests/test_command_packet.cpp
         tests/test_udp_sender.cpp

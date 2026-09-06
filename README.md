@@ -106,13 +106,40 @@ pio run -t upload    # Flash to ESP32
 pio device monitor   # Serial monitor
 ```
 
+## Machine Learning & Deep Learning (Option 1 + Option 2)
+
+This system features a complete, professional dual-phase Deep Learning architecture:
+
+### 1. Option 2: Training on Your Arm (`ml/train_my_arm.py`)
+Because forearm muscle geometry and skin impedance differ for each individual, you can record and train a custom Deep Neural Network on your own arm in under 30 seconds:
+
+```bash
+# To record your physical arm via Pico W / Arduino Serial:
+python ml/train_my_arm.py --port COM3 --duration 6
+
+# Or train immediately with synthetic physiological EMG data (no hardware needed):
+python ml/train_my_arm.py --synthetic --epochs 80
+```
+
+- Guides you through an interactive countdown for 4 gestures (**RELAX**, **GRASP**, **OPEN**, **CLOSE**).
+- Extracts 6 time-domain features (**RMS**, **MAV**, **VAR**, **WL**, **ZC**, **SSC**).
+- Trains a 3-layer Deep Multi-Layer Perceptron (`Dense(16, ReLU) -> Dense(12, ReLU) -> Dense(4, Softmax)`).
+- Automatically exports weights to `models/emg_mlp_weights.json`.
+
+### 2. Option 1: Native C++ Real-Time Inference (`NeuralNetModel`)
+The C++ pipeline loads `models/emg_mlp_weights.json` and runs the forward pass directly in native C++ with **< 10 µs latency**:
+
+- Zero external Python runtime or DLL dependencies at execution time.
+- Embedded fallback weights ensure the pipeline operates out-of-the-box even without a weights file.
+- Gated by confidence thresholding (`confidence >= 0.60`) in `emg::DecisionEngine` before transmitting UDP commands to the ESP32 servo.
+
 ## Configuration
 
 Edit `pc/config.json` to configure:
 
-- EMG acquisition parameters (sample rate, buffer size)
-- Feature extraction settings (which features to compute)
-- ML model parameters (confidence threshold)
+- EMG acquisition parameters (sample rate, buffer size, serial port)
+- Processing & feature extraction (window size 256, overlap 128, 6 features)
+- ML model (`"model_type": "neural_net"`, `"model_path": "models/emg_mlp_weights.json"`, `"confidence_threshold": 0.6`)
 - Decision mapping (class ID → command)
 - UDP connection (ESP32 IP address, port)
 - Safety timeouts

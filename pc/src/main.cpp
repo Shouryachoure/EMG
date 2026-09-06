@@ -23,10 +23,17 @@ int main(int argc, char* argv[]) {
     std::signal(SIGINT,  signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // Determine config file path
+    // Determine config file path & optional duration
     std::string config_path = "config.json";
-    if (argc > 1) {
-        config_path = argv[1];
+    int run_duration_sec = 0;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--duration" && i + 1 < argc) {
+            run_duration_sec = std::atoi(argv[++i]);
+        } else if (arg.rfind("--", 0) != 0) {
+            config_path = arg;
+        }
     }
 
     // Load configuration
@@ -61,9 +68,18 @@ int main(int argc, char* argv[]) {
     pipeline.start();
     LOG_INFO("Main", "Pipeline running. Press Ctrl+C to stop.");
 
-    // Wait for shutdown signal
+    // Wait for shutdown signal or duration timeout
+    auto start_time = std::chrono::steady_clock::now();
     while (!g_shutdown_requested.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (run_duration_sec > 0) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::steady_clock::now() - start_time).count();
+            if (elapsed >= run_duration_sec) {
+                LOG_INFO("Main", "Duration limit reached (" + std::to_string(run_duration_sec) + "s) — stopping");
+                break;
+            }
+        }
     }
 
     // Clean shutdown

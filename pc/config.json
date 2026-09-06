@@ -22,8 +22,8 @@
         "slope_sign_changes": true
     },
     "ml": {
-        "model_type": "mock",
-        "model_path": "",
+        "model_type": "neural_net",
+        "model_path": "models/emg_mlp_weights.json",
         "confidence_threshold": 0.6
     },
     "decisions": {
