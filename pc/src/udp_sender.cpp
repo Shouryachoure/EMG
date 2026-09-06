@@ -69,6 +69,10 @@ bool UDPSender::initialize() {
 }
 
 bool UDPSender::send(const Decision& decision) {
+    if (config_.protocol_version == 2) {
+        return sendV2(decision);
+    }
+
     if (!initialized_) return false;
 
     CommandPacket packet;
@@ -78,8 +82,28 @@ bool UDPSender::send(const Decision& decision) {
     packet.timestamp_ms    = decision.timestamp_ms;
     packet.confidence      = static_cast<float>(decision.confidence);
 
-    auto bytes = packet.toBytes();
+    return sendPacket(packet);
+}
 
+bool UDPSender::sendV2(const Decision& decision) {
+    if (!initialized_) return false;
+
+    CommandPacketV2 packet;
+    packet.version         = PROTOCOL_VERSION_V2;
+    packet.command         = decision.command;
+    packet.sequence_number = sequence_number_.fetch_add(1) + 1;
+    packet.timestamp_ms    = decision.timestamp_ms;
+    packet.confidence      = static_cast<float>(decision.confidence);
+    packet.intensity       = decision.intensity;
+    packet.finger_angles   = decision.finger_angles;
+
+    return sendPacketV2(packet);
+}
+
+bool UDPSender::sendPacket(const CommandPacket& packet) {
+    if (!initialized_) return false;
+
+    auto bytes = packet.toBytes();
     int sent = sendto(socket_,
                       reinterpret_cast<const char*>(bytes.data()),
                       static_cast<int>(bytes.size()),
@@ -89,6 +113,25 @@ bool UDPSender::send(const Decision& decision) {
 
     if (sent < 0) {
         LOG_WARN("UDPSender", "sendto() failed");
+        return false;
+    }
+
+    return true;
+}
+
+bool UDPSender::sendPacketV2(const CommandPacketV2& packet) {
+    if (!initialized_) return false;
+
+    auto bytes = packet.toBytes();
+    int sent = sendto(socket_,
+                      reinterpret_cast<const char*>(bytes.data()),
+                      static_cast<int>(bytes.size()),
+                      0,
+                      reinterpret_cast<struct sockaddr*>(&dest_addr_),
+                      sizeof(dest_addr_));
+
+    if (sent < 0) {
+        LOG_WARN("UDPSender", "sendto() v2 failed");
         return false;
     }
 

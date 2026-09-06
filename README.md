@@ -5,11 +5,11 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey.svg)]()
 [![Hardware](https://img.shields.io/badge/Hardware-RPi%20Pico%20W%20%7C%20ESP32%20%7C%20EMG-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-40%2F40%20Passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-45%2F45%20Passing-success.svg)]()
 
-A high-speed, multi-threaded biomedical telemetry and robotic actuator control platform. The system acquires electromyography (EMG) muscle signals from a forearm sensor (via Raspberry Pi Pico W or Arduino), filters noise, extracts clinical time-domain features, classifies hand gestures using a Deep Neural Network (MLP), and transmits verified, fail-safe binary motor control packets over UDP Wi-Fi to an ESP32 micro-controller driving a prosthetic robotic servo.
+A high-speed, multi-threaded biomedical telemetry and robotic actuator control platform. The system acquires electromyography (EMG) muscle signals from a forearm sensor (via Raspberry Pi Pico W or Arduino), filters noise with cached Butterworth IIR filters, extracts clinical time-domain features in a single memory pass, classifies hand gestures using a Deep Neural Network (MLP / 1D-CNN), and transmits verified, fail-safe binary motor control packets over UDP Wi-Fi and Bluetooth Low Energy (BLE) to an ESP32 micro-controller driving a 5-finger articulated bionic hand with exponential S-curve smoothing.
 
-Includes an interactive **60 FPS Bionic Telemetry Web Workstation** with live oscilloscope, FFT power spectrum, and multi-class neural network probability visualizer.
+Includes an interactive **60 FPS Bionic Telemetry Web Workstation** with live oscilloscope, FFT power spectrum, 1-Click In-Browser Calibration Suite, and multi-class neural network probability visualizer.
 
 ---
 
@@ -187,27 +187,30 @@ This project features a complete dual-phase Deep Learning pipeline:
 ### 1. Out-of-the-Box Inference (No training required!)
 The repository comes bundled with pre-calibrated default weights in [`models/emg_mlp_weights.json`](file:///d:/EMG/models/emg_mlp_weights.json). In addition, `pc/src/neural_net_model.cpp` has embedded default fallback weights. You can run inference immediately without training.
 
-### 2. Training on Your Own Arm (Recommended for maximum physical accuracy)
-Because each person's forearm muscle volume and skin impedance differ, you can train a personalized model tailored to your arm in **30 seconds**:
+### 2. In-Browser 1-Click Live Calibration (Interactive Web GUI)
+Open the telemetry dashboard at `http://localhost:8080`, click **CALIBRATE ARM** (or press `T`), and click **▶ START CALIBRATION**:
+- The browser counts down 3-2-1 with audio cues.
+- Prompts you through all 4 postures with live real-time progress.
+- Extracts features, trains the Deep MLP, and automatically saves weights to `models/emg_mlp_weights.json`.
+- Displays real-time test accuracy and full 4x4 confusion matrix evaluation!
+
+### 3. Training via Terminal CLI (For Hardware COM Port)
+Because each person's forearm muscle volume and skin impedance differ, you can also train via terminal:
 
 ```bash
-# With your Pico W / Arduino connected to COM3:
+# Guided calibration with your Pico W / Arduino connected to COM3:
 python ml/train_my_arm.py --port COM3 --duration 6
 
-# Or train on realistic synthetic EMG data without hardware:
+# Or train on realistic synthetic EMG data:
 python ml/train_my_arm.py --synthetic --epochs 80
 ```
 
-#### What `train_my_arm.py` does:
-1. Gives you a 3-2-1 countdown and prompts you to hold 4 gestures:
-   - **RELAX**: Rest arm flat on table (5 sec).
-   - **GRASP**: Make a firm fist (5 sec).
-   - **OPEN**: Spread fingers wide open (5 sec).
-   - **CLOSE**: Pinch thumb and index together (5 sec).
-2. Extracts 6 features window by window: `[RMS, MAV, VAR, WL, ZC, SSC]`.
-3. Trains a Deep Multi-Layer Perceptron (6 inputs → 16 hidden ReLU → 12 hidden ReLU → 4 Softmax).
-4. Evaluates accuracy and confusion matrix (typically 98–100%).
-5. Automatically writes the trained weights to `models/emg_mlp_weights.json`.
+### 4. Temporal 1D-CNN Deep Learning Model
+For advanced end-to-end classification directly from raw 256-sample EMG waveforms without manual feature extraction:
+```bash
+python ml/train_cnn.py --epochs 40 --lr 0.005
+```
+Exports `models/emg_cnn_weights.json` with multi-kernel 1D convolution, spatial max-pooling, and dense classification layers.
 
 ---
 

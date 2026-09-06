@@ -32,8 +32,9 @@ namespace emg {
 
 /// Configuration for UDP sender.
 struct UDPConfig {
-    std::string esp32_ip   = "192.168.1.100";
-    uint16_t    esp32_port = 8888;
+    std::string esp32_ip         = "192.168.1.100";
+    uint16_t    esp32_port       = 8888;
+    uint8_t     protocol_version = 1; ///< 1 = 16-byte v1, 2 = 24-byte v2
 };
 
 class UDPSender {
@@ -49,10 +50,19 @@ public:
     /// @return true on success.
     bool initialize();
 
-    /// Send a decision as a UDP command packet.
+    /// Send a decision as a UDP command packet (uses config.protocol_version).
     /// @param decision The decision to send.
     /// @return true if the packet was sent successfully.
     bool send(const Decision& decision);
+
+    /// Explicitly send as Protocol v2 (24 bytes with intensity and 5-finger angles).
+    bool sendV2(const Decision& decision);
+
+    /// Send raw CommandPacket (Protocol v1).
+    bool sendPacket(const CommandPacket& packet);
+
+    /// Send raw CommandPacketV2 (Protocol v2).
+    bool sendPacketV2(const CommandPacketV2& packet);
 
     /// Send a raw command (convenience method).
     bool sendCommand(Command cmd, double confidence = 1.0);

@@ -74,6 +74,24 @@
     const btnCopyTrainCmd = document.getElementById('btn-copy-train-cmd');
     const trainCmdText = document.getElementById('train-cmd-text');
 
+    // In-Browser Live Calibration Elements
+    const btnStartCalib = document.getElementById('btn-start-calibration');
+    const calibPanel = document.getElementById('calib-panel');
+    const calibPhasePill = document.getElementById('calib-phase-pill');
+    const calibStatePill = document.getElementById('calib-state-pill');
+    const calibCountNumber = document.getElementById('calib-count-number');
+    const calibCountLabel = document.getElementById('calib-count-label');
+    const calibGestureIcon = document.getElementById('calib-gesture-icon');
+    const calibGestureTitle = document.getElementById('calib-gesture-title');
+    const calibGestureDesc = document.getElementById('calib-gesture-desc');
+    const calibProgressPhase = document.getElementById('calib-progress-phase');
+    const calibProgressPct = document.getElementById('calib-progress-pct');
+    const calibProgressFill = document.getElementById('calib-progress-fill');
+    const calibCompletePanel = document.getElementById('calib-complete-panel');
+    const calibCompleteMsg = document.getElementById('calib-complete-msg');
+    const calibAccBadge = document.getElementById('calib-acc-badge');
+    const calibConfusionGrid = document.getElementById('calib-confusion-grid');
+
     const btnExportCsv = document.getElementById('btn-export-csv');
     const btnToggleScanlines = document.getElementById('btn-toggle-scanlines');
     const screenScanlines = document.getElementById('screen-scanlines');
@@ -482,6 +500,10 @@
                 const data = JSON.parse(event.data);
                 if (data.type === 'telemetry') {
                     onTelemetryFrame(data);
+                } else if (data.type === 'calibration_progress') {
+                    onCalibrationProgress(data);
+                } else if (data.type === 'calibration_complete') {
+                    onCalibrationComplete(data);
                 }
             } catch (err) {
                 console.error('Telemetry frame decode error:', err);
@@ -555,6 +577,119 @@
             setTimeout(() => { btnCopyTrainCmd.textContent = 'COPY'; }, 1500);
         });
     });
+
+    // 1-Click Calibration Suite Controller
+    const CALIB_GESTURE_ICONS = {
+        'RELAX': '✋',
+        'GRASP': '✊',
+        'OPEN': '🖐️',
+        'CLOSE': '👊',
+        'TRAINING': '🧠'
+    };
+
+    if (btnStartCalib) {
+        btnStartCalib.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                btnStartCalib.disabled = true;
+                btnStartCalib.textContent = 'CALIBRATION IN PROGRESS...';
+                if (calibCompletePanel) calibCompletePanel.style.display = 'none';
+                if (calibPanel) calibPanel.style.display = 'flex';
+                ws.send(JSON.stringify({
+                    action: 'start_browser_calibration',
+                    duration: 4.0
+                }));
+            } else {
+                alert('Telemetry server WebSocket is not connected! Please start server.py.');
+            }
+        });
+    }
+
+    function onCalibrationProgress(data) {
+        if (!calibPanel) return;
+        calibPanel.style.display = 'flex';
+        if (calibCompletePanel) calibCompletePanel.style.display = 'none';
+
+        if (calibPhasePill) calibPhasePill.textContent = `PHASE ${data.phase_num} / 4`;
+        if (calibGestureTitle) calibGestureTitle.textContent = data.phase_name;
+        if (calibGestureDesc) calibGestureDesc.textContent = data.phase_desc;
+        if (calibGestureIcon) calibGestureIcon.textContent = CALIB_GESTURE_ICONS[data.phase_name] || '🦾';
+
+        if (data.state === 'countdown') {
+            if (calibStatePill) {
+                calibStatePill.textContent = 'COUNTDOWN';
+                calibStatePill.style.color = 'var(--accent-amber)';
+            }
+            if (calibCountNumber) {
+                calibCountNumber.textContent = data.countdown;
+                calibCountNumber.style.color = '#ffffff';
+            }
+            if (calibCountLabel) calibCountLabel.textContent = 'HOLD POSITION';
+            if (calibProgressPhase) calibProgressPhase.textContent = `Get ready for ${data.phase_name}...`;
+            if (calibProgressPct) calibProgressPct.textContent = '0%';
+            if (calibProgressFill) calibProgressFill.style.width = '0%';
+            if (audioEnabled) playBeep(440, 0.04);
+        } else if (data.state === 'recording') {
+            if (calibStatePill) {
+                calibStatePill.textContent = 'RECORDING';
+                calibStatePill.style.color = 'var(--accent-emerald)';
+            }
+            if (calibCountNumber) {
+                calibCountNumber.textContent = '●';
+                calibCountNumber.style.color = 'var(--accent-red)';
+            }
+            if (calibCountLabel) calibCountLabel.textContent = 'ACTIVE EMG';
+            if (calibProgressPhase) calibProgressPhase.textContent = `Recording ${data.phase_name} muscle activity...`;
+            if (calibProgressPct) calibProgressPct.textContent = `${data.progress_pct}%`;
+            if (calibProgressFill) calibProgressFill.style.width = `${data.progress_pct}%`;
+        } else if (data.state === 'training') {
+            if (calibStatePill) {
+                calibStatePill.textContent = 'TRAINING';
+                calibStatePill.style.color = 'var(--accent-cyan)';
+            }
+            if (calibCountNumber) {
+                calibCountNumber.textContent = '⚙';
+                calibCountNumber.style.color = 'var(--accent-cyan)';
+            }
+            if (calibCountLabel) calibCountLabel.textContent = 'DEEP MLP';
+            if (calibProgressPhase) calibProgressPhase.textContent = 'Training Deep Multi-Layer Perceptron (6 → 16 → 12 → 4)...';
+            if (calibProgressPct) calibProgressPct.textContent = '100%';
+            if (calibProgressFill) calibProgressFill.style.width = '100%';
+        }
+    }
+
+    function onCalibrationComplete(data) {
+        if (calibPanel) calibPanel.style.display = 'none';
+        if (calibCompletePanel) calibCompletePanel.style.display = 'flex';
+        if (btnStartCalib) {
+            btnStartCalib.disabled = false;
+            btnStartCalib.textContent = '▶ RE-CALIBRATE ARM';
+        }
+
+        if (calibAccBadge) calibAccBadge.textContent = `${data.accuracy}% ACCURACY`;
+        if (calibCompleteMsg) calibCompleteMsg.textContent = data.message || 'Custom arm weights trained and exported!';
+
+        if (calibConfusionGrid && data.confusion && data.confusion.length === 4) {
+            calibConfusionGrid.innerHTML = '';
+            const labels = ['RELAX', 'GRASP', 'OPEN', 'CLOSE'];
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    const cell = document.createElement('div');
+                    const isDiag = (r === c);
+                    cell.className = `matrix-cell ${isDiag ? 'diagonal' : ''}`;
+                    cell.innerHTML = `
+                        <span class="cell-label">${labels[r]}→${labels[c]}</span>
+                        <span class="cell-val">${data.confusion[r][c]}</span>
+                    `;
+                    calibConfusionGrid.appendChild(cell);
+                }
+            }
+        }
+
+        if (audioEnabled) {
+            playBeep(587, 0.08);
+            setTimeout(() => playBeep(880, 0.15), 100);
+        }
+    }
 
     // CSV Exporter
     btnExportCsv.addEventListener('click', () => {

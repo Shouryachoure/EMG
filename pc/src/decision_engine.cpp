@@ -42,6 +42,30 @@ Decision DecisionEngine::decide(const Prediction& prediction) const {
         decision.command = Command::NONE;
     }
 
+    // Set proportional intensity based on confidence (0-100%)
+    double scaled = prediction.confidence * 100.0;
+    if (scaled < 0.0) scaled = 0.0;
+    if (scaled > 100.0) scaled = 100.0;
+    decision.intensity = static_cast<uint8_t>(scaled);
+
+    // Set 5-finger articulation angles based on command posture
+    switch (decision.command) {
+        case Command::GRASP:
+            decision.finger_angles = {0, 0, 0, 0, 0};           // Full power fist
+            break;
+        case Command::OPEN:
+            decision.finger_angles = {180, 180, 180, 180, 180}; // Full hand open
+            break;
+        case Command::CLOSE:
+            decision.finger_angles = {0, 0, 90, 90, 90};         // Precision pinch (Thumb + Index)
+            break;
+        case Command::RELAX:
+        case Command::NONE:
+        default:
+            decision.finger_angles = {90, 90, 90, 90, 90};      // Neutral rest
+            break;
+    }
+
     return decision;
 }
 

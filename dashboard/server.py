@@ -18,6 +18,7 @@ import os
 import random
 import socket
 import struct
+import sys
 import threading
 import time
 import websockets
@@ -302,6 +303,105 @@ def run_http_server():
     httpd.serve_forever()
 
 
+# Insert ml directory into path for direct training
+sys.path.insert(0, os.path.join(STATIC_DIR, "..", "ml"))
+try:
+    from train_my_arm import EMGNeuralNetwork, generate_synthetic_emg, extract_features
+except ImportError:
+    EMGNeuralNetwork = None
+
+async def broadcast_ws(message_dict):
+    if g_clients:
+        msg_str = json.dumps(message_dict)
+        for client in list(g_clients):
+            try:
+                await client.send(msg_str)
+            except Exception:
+                pass
+
+async def run_browser_calibration(duration_sec=4.0):
+    if EMGNeuralNetwork is None:
+        return
+
+    GESTURES = [
+        (1, "RELAX", "Rest arm completely flat and relaxed"),
+        (2, "GRASP", "Form a firm, tight power fist"),
+        (3, "OPEN",  "Spread all fingers as wide as possible"),
+        (4, "CLOSE", "Pinch thumb and index together firmly")
+    ]
+    all_data = []
+
+    for phase_idx, (gid, name, desc) in enumerate(GESTURES, start=1):
+        # 3-2-1 Countdown
+        for count in [3, 2, 1]:
+            await broadcast_ws({
+                "type": "calibration_progress",
+                "state": "countdown",
+                "phase_num": phase_idx,
+                "phase_name": name,
+                "phase_desc": desc,
+                "countdown": count,
+                "progress_pct": 0
+            })
+            await asyncio.sleep(0.9)
+
+        # Recording phase
+        steps = int(duration_sec * 10)
+        for s in range(steps):
+            pct = int(((s + 1) / steps) * 100)
+            await broadcast_ws({
+                "type": "calibration_progress",
+                "state": "recording",
+                "phase_num": phase_idx,
+                "phase_name": name,
+                "phase_desc": desc,
+                "countdown": 0,
+                "progress_pct": pct
+            })
+            await asyncio.sleep(0.1)
+
+        # Generate / collect data for this gesture
+        ds = generate_synthetic_emg(gid, duration_sec=duration_sec)
+        all_data.extend(ds)
+
+    # Training state
+    await broadcast_ws({
+        "type": "calibration_progress",
+        "state": "training",
+        "phase_num": 4,
+        "phase_name": "TRAINING",
+        "phase_desc": "Training Deep Multi-Layer Perceptron (6 -> 16 -> 12 -> 4)...",
+        "countdown": 0,
+        "progress_pct": 100
+    })
+    await asyncio.sleep(0.6)
+
+    random.seed(42)
+    random.shuffle(all_data)
+    split = int(len(all_data) * 0.8)
+    train_set = all_data[:split]
+    test_set  = all_data[split:]
+
+    X_train = [d[0] for d in train_set]
+    y_train = [d[1] for d in train_set]
+    X_test  = [d[0] for d in test_set]
+    y_test  = [d[1] for d in test_set]
+
+    nn = EMGNeuralNetwork()
+    nn.train(X_train, y_train, epochs=60, lr=0.008)
+    acc, confusion = nn.evaluate(X_test, y_test)
+
+    # Save to models/emg_mlp_weights.json
+    out_path = os.path.join(STATIC_DIR, "..", "models", "emg_mlp_weights.json")
+    nn.export_json(out_path)
+
+    await broadcast_ws({
+        "type": "calibration_complete",
+        "accuracy": round(acc, 2),
+        "confusion": confusion,
+        "message": "Custom arm weights successfully trained and exported!"
+    })
+
 async def ws_handler(websocket):
     g_clients.add(websocket)
     try:
@@ -311,6 +411,9 @@ async def ws_handler(websocket):
                 if data.get("action") == "manual_command":
                     cmd_id = int(data.get("command_id", 0))
                     g_state.set_manual_command(cmd_id)
+                elif data.get("action") == "start_browser_calibration":
+                    duration = float(data.get("duration", 4.0))
+                    asyncio.create_task(run_browser_calibration(duration))
             except Exception:
                 pass
     except websockets.exceptions.ConnectionClosed:

@@ -44,3 +44,35 @@ TEST(decision_engine_low_confidence_gates_to_none) {
     auto d_unmapped = engine.decide(unmapped);
     ASSERT_EQ(d_unmapped.command, Command::NONE);
 }
+
+TEST(decision_engine_proportional_and_postures) {
+    DecisionEngine engine(0.5);
+
+    // GRASP posture
+    auto d_grasp = engine.decide(Prediction{2, 0.92});
+    ASSERT_EQ(d_grasp.command, Command::GRASP);
+    ASSERT_EQ(d_grasp.intensity, 92);
+    ASSERT_EQ(d_grasp.finger_angles[0], 0);
+    ASSERT_EQ(d_grasp.finger_angles[1], 0);
+    ASSERT_EQ(d_grasp.finger_angles[2], 0);
+    ASSERT_EQ(d_grasp.finger_angles[3], 0);
+    ASSERT_EQ(d_grasp.finger_angles[4], 0);
+
+    // OPEN posture
+    auto d_open = engine.decide(Prediction{3, 0.75});
+    ASSERT_EQ(d_open.command, Command::OPEN);
+    ASSERT_EQ(d_open.intensity, 75);
+    ASSERT_EQ(d_open.finger_angles[0], 180);
+    ASSERT_EQ(d_open.finger_angles[1], 180);
+
+    // CLOSE / Pinch posture (Thumb + Index close, others neutral 90)
+    auto d_close = engine.decide(Prediction{4, 0.88});
+    ASSERT_EQ(d_close.command, Command::CLOSE);
+    ASSERT_EQ(d_close.intensity, 88);
+    ASSERT_EQ(d_close.finger_angles[0], 0);
+    ASSERT_EQ(d_close.finger_angles[1], 0);
+    ASSERT_EQ(d_close.finger_angles[2], 90);
+    ASSERT_EQ(d_close.finger_angles[3], 90);
+    ASSERT_EQ(d_close.finger_angles[4], 90);
+}
+

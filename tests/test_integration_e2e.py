@@ -72,6 +72,19 @@ def main():
                         "timestamp": ts,
                         "conf": conf
                     })
+                elif len(data) == 24:
+                    version, cmd_id, seq, ts, conf, intensity, mask, a0, a1, a2, a3, a4, res, rx_crc = struct.unpack("<BBIIfBBB5BBH", data)
+                    calc_crc = crc16(data[:22])
+                    assert calc_crc == rx_crc, f"CRC v2 mismatch: expected {calc_crc}, got {rx_crc}"
+                    received_packets.append({
+                        "version": version,
+                        "command": cmd_id,
+                        "seq": seq,
+                        "timestamp": ts,
+                        "conf": conf,
+                        "intensity": intensity,
+                        "finger_angles": [a0, a1, a2, a3, a4]
+                    })
             except socket.timeout:
                 pass
     finally:

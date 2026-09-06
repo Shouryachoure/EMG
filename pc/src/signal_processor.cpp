@@ -105,6 +105,16 @@ std::vector<double> SignalProcessor::process(const std::vector<double>& raw_samp
     return output;
 }
 
+std::vector<std::vector<double>> SignalProcessor::processMultiChannel(
+    const std::vector<std::vector<double>>& multi_channel_samples) const {
+    std::vector<std::vector<double>> processed;
+    processed.reserve(multi_channel_samples.size());
+    for (const auto& channel : multi_channel_samples) {
+        processed.push_back(process(channel));
+    }
+    return processed;
+}
+
 std::vector<double> SignalProcessor::removeDC(const std::vector<double>& samples) {
     const size_t n = samples.size();
     if (n == 0) return {};

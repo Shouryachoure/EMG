@@ -14,15 +14,19 @@
 #include "ml_model.h"
 #include <map>
 #include <chrono>
+#include <array>
+#include <cstdint>
 
 namespace emg {
 
 /// A decision produced by the engine — includes the command and metadata.
 struct Decision {
-    Command command     = Command::NONE;
-    int     class_id    = 0;
-    double  confidence  = 0.0;
-    uint32_t timestamp_ms = 0;   ///< Milliseconds since epoch (truncated to 32 bits)
+    Command command        = Command::NONE;
+    int     class_id       = 0;
+    double  confidence     = 0.0;
+    uint32_t timestamp_ms  = 0;   ///< Milliseconds since epoch (truncated to 32 bits)
+    uint8_t  intensity     = 0;   ///< 0-100% proportional contraction force
+    std::array<uint8_t, 5> finger_angles = {90, 90, 90, 90, 90}; ///< Individual finger articulation angles
 };
 
 class DecisionEngine {

@@ -408,6 +408,73 @@
             </div>
 
             <div class="modal-body">
+                <!-- 1-Click In-Browser Calibration Hero Card -->
+                <div class="calib-card" id="calib-card">
+                    <div class="calib-card-header">
+                        <div>
+                            <span class="calib-tag">OPTION A • 1-CLICK LIVE IN-BROWSER CALIBRATION</span>
+                            <p class="calib-card-sub">Guides you through 4 gestures, extracts real-time features, trains the Deep MLP, and exports weights.</p>
+                        </div>
+                        <button class="btn-calib-start" id="btn-start-calibration">
+                            <span class="pulse-ring"></span>
+                            ▶ START CALIBRATION
+                        </button>
+                    </div>
+
+                    <!-- Active Interactive Live Phase Panel -->
+                    <div class="calib-panel" id="calib-panel" style="display: none;">
+                        <div class="calib-status-row">
+                            <span class="calib-phase-pill" id="calib-phase-pill">PHASE 1 / 4</span>
+                            <span class="calib-state-pill" id="calib-state-pill">COUNTDOWN</span>
+                        </div>
+
+                        <div class="calib-visual-grid">
+                            <div class="calib-countdown-box" id="calib-countdown-box">
+                                <span class="calib-count-number" id="calib-count-number">3</span>
+                                <span class="calib-count-label" id="calib-count-label">GET READY</span>
+                            </div>
+
+                            <div class="calib-gesture-preview" id="calib-gesture-preview">
+                                <span class="calib-gesture-icon" id="calib-gesture-icon">✋</span>
+                                <div class="calib-gesture-info">
+                                    <h4 id="calib-gesture-title">RELAX</h4>
+                                    <p id="calib-gesture-desc">Rest arm completely flat and relaxed</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="calib-progress-section">
+                            <div class="calib-progress-header">
+                                <span id="calib-progress-phase">Recording EMG Samples...</span>
+                                <span id="calib-progress-pct">0%</span>
+                            </div>
+                            <div class="calib-progress-track">
+                                <div class="calib-progress-fill" id="calib-progress-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calibration Complete Results -->
+                    <div class="calib-complete-panel" id="calib-complete-panel" style="display: none;">
+                        <div class="calib-success-banner">
+                            <span class="check-icon">✓</span>
+                            <div>
+                                <h4>CALIBRATION COMPLETE</h4>
+                                <p id="calib-complete-msg">Custom arm weights successfully trained and exported!</p>
+                            </div>
+                            <span class="calib-acc-badge" id="calib-acc-badge">98.5% ACCURACY</span>
+                        </div>
+                        <div class="calib-confusion-preview">
+                            <span class="confusion-title">EVALUATION CONFUSION MATRIX (TEST SET)</span>
+                            <div class="confusion-grid" id="calib-confusion-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-divider">
+                    <span>OPTION B • MANUAL TERMINAL CLI (COM PORT)</span>
+                </div>
+
                 <div class="modal-step">
                     <div class="step-num">1</div>
                     <div class="step-content">

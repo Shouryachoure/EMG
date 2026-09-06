@@ -68,3 +68,31 @@ TEST(signal_processor_bandpass) {
     }
     ASSERT_TRUE(max_val > 0.1);
 }
+
+TEST(signal_processor_multichannel) {
+    ProcessingConfig config;
+    config.sample_rate_hz = 1000.0;
+    config.normalize = true;
+
+    SignalProcessor proc(config);
+
+    // 4 distinct EMG electrode channels
+    std::vector<std::vector<double>> multi(4);
+    for (size_t ch = 0; ch < 4; ++ch) {
+        multi[ch].resize(128);
+        for (size_t i = 0; i < 128; ++i) {
+            multi[ch][i] = std::sin(2.0 * 3.1415926535 * (50.0 + ch * 25.0) * i / 1000.0) + (ch * 2.0);
+        }
+    }
+
+    auto out_multi = proc.processMultiChannel(multi);
+    ASSERT_EQ(out_multi.size(), 4u);
+    for (size_t ch = 0; ch < 4; ++ch) {
+        ASSERT_EQ(out_multi[ch].size(), 128u);
+        // Each channel should be normalized within [-1, 1]
+        for (double v : out_multi[ch]) {
+            ASSERT_TRUE(v >= -1.0 - 1e-5 && v <= 1.0 + 1e-5);
+        }
+    }
+}
+

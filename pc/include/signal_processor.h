@@ -24,6 +24,12 @@ public:
     /// @return Processed samples.
     std::vector<double> process(const std::vector<double>& raw_samples) const;
 
+    /// Process multi-channel EMG sample windows simultaneously.
+    /// @param multi_channel_samples Vector of channels (each channel is a sample vector).
+    /// @return Vector of processed channels.
+    std::vector<std::vector<double>> processMultiChannel(
+        const std::vector<std::vector<double>>& multi_channel_samples) const;
+
     /// Remove DC offset (subtract mean).
     static std::vector<double> removeDC(const std::vector<double>& samples);
 
